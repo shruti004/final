@@ -2,6 +2,34 @@ provider "aws" {
   region = "ap-south-1"
   profile = "user1"
 }
+
+resource "tls_private_key" "tls_key" {
+  algorithm = "RSA"
+}
+
+
+
+resource "aws_key_pair" "generated_key" {
+  key_name   = "web-env-key"
+  public_key = "${tls_private_key.tls_key.public_key_openssh}"
+
+
+  depends_on = [
+    tls_private_key.tls_key
+  ]
+}
+
+
+
+resource "local_file" "key-file" {
+  content  = "${tls_private_key.tls_key.private_key_pem}"
+  filename = "web-env-key.pem"
+
+
+  depends_on = [
+    tls_private_key.tls_key
+  ]
+}
 resource "aws_security_group" "securitytask" {
   name        = "securitytask"
   description = "Security Group"
@@ -33,13 +61,13 @@ egress {
 resource "aws_instance" "osinstance24" {
   ami  = "ami-0447a12f28fddb066"
   instance_type = "t2.micro"
-  key_name ="mytest24" 
+  key_name =""${aws_key_pair.generated_key.key_name}"" 
   security_groups =  ["securitytask"]
 
    connection {
     type     = "ssh"
     user     = "ec2-user"
-    private_key = file("C:/Users/Shruti/Downloads/mytest24.pem")
+    private_key = "${tls_private_key.tls_key.private_key_pem}"
     host     = aws_instance.osinstance24.public_ip
   }
   
@@ -90,14 +118,14 @@ depends_on = [
   connection {
     type     = "ssh"
     user     = "ec2-user"
-    private_key = file("C:/Users/Shruti/Downloads/mytest24.pem")
+    private_key = "${tls_private_key.tls_key.private_key_pem}"
     host     = aws_instance.osinstance24.public_ip
   }
 provisioner "remote-exec" {
     inline = [
       "sudo mkfs.ext4  /dev/xvdh",
       "sudo mount  /dev/xvdh  /var/www/html",
-      "sudo git clone https://github.com/shruti004/task-1.git  /var/www/html"
+      "sudo git clone https://github.com/shruti004/final.git  /var/www/html"
     ]
   }
 }
@@ -111,12 +139,17 @@ depends_on = [
 	provisioner "local-exec" {
 	    command = "chrome  ${aws_instance.osinstance24.public_ip}"
   	}
+
+provisioner "local-exec" {
+	    command = "chrome  index.html"
+  	}
+
 }
 resource "aws_s3_bucket" "testbuc04" {
   bucket = "shruti0012389"
   acl    = "public-read"
 provisioner "local-exec" {
-   command ="git clone https://github.com/shruti004/task-1/blob/master/Screenshot_20190906-093636%20(1).png"
+   command ="git clone https://github.com/shruti004/final/blob/master/Screenshot_20190906-093636%20(1).png"
 }
 tags ={
 Name = "s3bucket"
@@ -125,8 +158,8 @@ Name = "s3bucket"
 resource "aws_s3_bucket_object" "object24" {
   bucket = "${aws_s3_bucket.testbuc04.id}"
   key    = "Screenshot_20190906-093636 (1)_pic.png"
-  source = "C:/Users/Shruti/Downloads/task-1-master/Screenshot_20190906-093636 (1).png"
-
+  source = "C:/Users/Shruti/Downloads/final-master/Screenshot_20190906-093636 (1).png"
+ acl    = "public-read"
 content_type ="image/png"
   
 }
@@ -191,23 +224,22 @@ resource "aws_cloudfront_distribution" "s3distributiontask" {
  connection {
     type     = "ssh"
     user     = "ec2-user"
-    private_key = file("C:/Users/Shruti/Downloads/mytest24.pem")
+    private_key ="${tls_private_key.tls_key.private_key_pem}"
     host     = aws_instance.osinstance24.public_ip
   }
 provisioner "remote-exec" {
     inline = [
                     "sudo su <<EOF",
-                      "echo \"<img src= http://${aws_cloudfront_distribution.s3distributiontask.domain_name}/${aws_instance.osinstance24.public_ip}/web.html"
+                      "echo \"<img src= http://${aws_cloudfront_distribution.s3distributiontask.domain_name}/${aws_instance.osinstance24.public_ip}/final.html"
                       
 ]
 }
-
+resource "null_resource" "nullfinal24"  {
 depends_on = [
      aws_cloudfront_distribution.s3distributiontask,
    ]
 provisioner "local-exec" {
-	    command  = "cd C:/Program Files/Google/Chrome/Application/${aws_instance.osinstance24.public_ip}/web.html"
-  
-
+	    command  = "cd C:/Program Files/Google/Chrome/Application/${aws_instance.osinstance24.public_ip}/final.html"
+  }
 }
 }
